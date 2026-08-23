@@ -1,0 +1,23 @@
+[project]
+name = "user-notes"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Jean Paul Cardozo", email = "paulcardozo_01@outlook.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "dotenv>=0.9.9",
+    "fastapi[standard]>=0.141.1",
+    "psycopg2>=2.9.12",
+    "sqlalchemy>=2.0.52",
+    "tzdata>=2026.3",
+]
+
+[project.scripts]
+user-notes = "user_notes:main"
+
+[build-system]
+requires = ["uv_build>=0.12.5,<0.13.0"]
+build-backend = "uv_build"
