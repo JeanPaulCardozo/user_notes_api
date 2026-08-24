@@ -4,14 +4,19 @@ from user_notes.models.users import User
 from user_notes.schemas.users import UserCreate
 from user_notes.core.security import hash_password, verify_password
 
+
 def get_user_by_email(db: Session, email: str) -> User | None:
     return db.query(User).filter(User.email == email).first()
+
 
 def get_user_by_id(db: Session, user_id: int) -> User | None:
     return db.query(User).filter(User.id == user_id).first()
 
+
 def create_user(db: Session, user_schema: UserCreate) -> User:
-    new_user = User(email=user_schema.email,hashed_password=hash_password(user_schema.password))
+    new_user = User(
+        email=user_schema.email, hashed_password=hash_password(user_schema.password)
+    )
 
     db.add(new_user)
     db.commit()
@@ -19,8 +24,9 @@ def create_user(db: Session, user_schema: UserCreate) -> User:
 
     return new_user
 
+
 def authenticate_user(db: Session, email: str, password: str) -> User | None:
-    user = get_user_by_email(db,email)
+    user = get_user_by_email(db, email)
 
     if user is None:
         return None

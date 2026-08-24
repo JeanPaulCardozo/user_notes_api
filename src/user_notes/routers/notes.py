@@ -11,49 +11,74 @@ router = APIRouter(prefix="/notes", tags=["notes"])
 
 
 @router.get("/", response_model=list[NoteOut])
-def get_notes(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def get_notes(
+    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
     return notes_service.get_notes(db, current_user.id)
 
 
 @router.post("/", response_model=NoteOut, status_code=201)
-def create_note(note: NoteCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return notes_service.create_note(db, note,current_user.id)
+def create_note(
+    note: NoteCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return notes_service.create_note(db, note, current_user.id)
 
 
 @router.get("/{note_id}", response_model=NoteOut, status_code=200)
-def get_note(note_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def get_note(
+    note_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     note = notes_service.get_note(db, note_id)
 
     if note is None:
         raise HTTPException(status_code=404, detail="Note Not found")
 
     if note.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not Authorized to access this note")
+        raise HTTPException(
+            status_code=403, detail="Not Authorized to access this note"
+        )
     return note
 
 
 @router.patch("/{note_id}", response_model=NoteOut, status_code=200)
-def update_note(note_id: int, note_schema: NoteUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    note = notes_service.get_note(db,note_id)
+def update_note(
+    note_id: int,
+    note_schema: NoteUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    note = notes_service.get_note(db, note_id)
 
     if note is None:
         raise HTTPException(status_code=404, detail="Note Not Found")
 
     if note.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not Authorized to access this note")
-    
+        raise HTTPException(
+            status_code=403, detail="Not Authorized to access this note"
+        )
+
     return notes_service.update_note(db, note_schema, note_id)
 
 
 @router.delete("/{note_id}", status_code=204)
-def delete_note(note_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def delete_note(
+    note_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
 
-    note = notes_service.get_note(db,note_id)
+    note = notes_service.get_note(db, note_id)
 
     if note is None:
         raise HTTPException(status_code=404, detail="Note Not Found")
 
     if note.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not Authorized to access this note")
+        raise HTTPException(
+            status_code=403, detail="Not Authorized to access this note"
+        )
 
     notes_service.delete_note(db, note_id)

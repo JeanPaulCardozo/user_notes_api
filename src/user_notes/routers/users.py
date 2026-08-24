@@ -2,27 +2,31 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from user_notes.database import get_db
-from user_notes.schemas.users import UserCreate, UserOut,Token
+from user_notes.schemas.users import UserCreate, UserOut, Token
 from user_notes.services import users_service
 from user_notes.core.security import create_access_token
 from user_notes.core.dependencies import get_current_user
 from user_notes.models.users import User
 from fastapi.security import OAuth2PasswordRequestForm
 
-router = APIRouter(prefix="/users",tags=["users"])
+router = APIRouter(prefix="/users", tags=["users"])
 
-@router.post("/register",response_model=UserOut,status_code=201)
+
+@router.post("/register", response_model=UserOut, status_code=201)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
-    exist_user = users_service.get_user_by_email(db,user.email)
+    exist_user = users_service.get_user_by_email(db, user.email)
 
     if exist_user is not None:
         raise HTTPException(status_code=400, detail="User already registered")
 
-    return users_service.create_user(db,user)
+    return users_service.create_user(db, user)
+
 
 @router.post("/login", response_model=Token, status_code=200)
-def login_user(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = users_service.authenticate_user(db,form_data.username,form_data.password)
+def login_user(
+    form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
+):
+    user = users_service.authenticate_user(db, form_data.username, form_data.password)
 
     if user is None:
         raise HTTPException(status_code=401, detail="Incorrect email or password")
@@ -30,6 +34,7 @@ def login_user(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = D
     access_token = create_access_token(data={"sub": str(user.id)})
 
     return Token(access_token=access_token)
+
 
 @router.get("/me", response_model=UserOut)
 def read_current_user(current_user: User = Depends(get_current_user)):

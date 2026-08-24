@@ -5,7 +5,9 @@ from user_notes.schemas.notes import NoteCreate, NoteUpdate
 
 
 def create_note(db: Session, note_schema: NoteCreate, owner_id: int) -> Notes:
-    new_note = Notes(title=note_schema.title, content=note_schema.content, owner_id=owner_id)
+    new_note = Notes(
+        title=note_schema.title, content=note_schema.content, owner_id=owner_id
+    )
 
     db.add(new_note)
     db.commit()
@@ -14,7 +16,7 @@ def create_note(db: Session, note_schema: NoteCreate, owner_id: int) -> Notes:
     return new_note
 
 
-def get_notes(db: Session,owner_id: int) -> list[Notes]:
+def get_notes(db: Session, owner_id: int) -> list[Notes]:
     return db.query(Notes).filter(Notes.owner_id == owner_id).all()
 
 

@@ -8,11 +8,13 @@ authors = [
 ]
 requires-python = ">=3.14"
 dependencies = [
+    "alembic>=1.19.1",
     "bcrypt==4.0.1",
     "dotenv>=0.9.9",
     "fastapi[standard]>=0.141.1",
     "passlib[bcrypt]>=1.7.4",
     "psycopg2>=2.9.12",
+    "pytest>=9.1.1",
     "python-jose[cryptography]>=3.5.0",
     "sqlalchemy>=2.0.52",
     "tzdata>=2026.3",
@@ -24,3 +26,6 @@ user-notes = "user_notes:main"
 [build-system]
 requires = ["uv_build>=0.12.5,<0.13.0"]
 build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
