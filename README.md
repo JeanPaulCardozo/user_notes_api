@@ -6,14 +6,18 @@
 
 ## Español
 
-API REST para la gestión de notas de usuario, construida con **FastAPI**, **SQLAlchemy** y **PostgreSQL**.
+API REST para la gestión de notas de usuario, construida con **FastAPI**, **SQLAlchemy** y **PostgreSQL**. Cada nota pertenece a un usuario autenticado y solo su dueño puede consultarla, modificarla o eliminarla.
 
 ### Características
 
-- CRUD completo de notas (crear, listar, obtener, actualizar y eliminar).
+- Registro y login de usuarios con contraseñas hasheadas (**bcrypt**).
+- Autenticación mediante **JWT** (OAuth2 Password Flow).
+- CRUD completo de notas (crear, listar, obtener, actualizar y eliminar), protegido por usuario propietario.
 - Validación de datos con **Pydantic**.
 - Persistencia con **SQLAlchemy ORM** sobre **PostgreSQL**.
+- Migraciones de esquema gestionadas con **Alembic**.
 - Fechas de creación/actualización serializadas en la zona horaria `America/Bogota`.
+- Suite de pruebas con **pytest** sobre una base de datos SQLite en memoria.
 - Endpoint de *health check* (`GET /`).
 
 ### Stack técnico
@@ -23,25 +27,39 @@ API REST para la gestión de notas de usuario, construida con **FastAPI**, **SQL
 | Python | >= 3.14 |
 | FastAPI | Framework web |
 | SQLAlchemy | ORM |
+| Alembic | Migraciones de base de datos |
 | psycopg2 | Driver de PostgreSQL |
 | Pydantic | Validación y serialización |
+| passlib (bcrypt) | Hashing de contraseñas |
+| python-jose | Firma y verificación de JWT |
 | python-dotenv | Carga de variables de entorno |
+| pytest | Pruebas automatizadas |
 | uv | Gestión de dependencias y entorno |
 
 ### Estructura del proyecto
 
 ```
 src/user_notes/
-├── main.py                 # Punto de entrada de la app FastAPI
-├── database.py              # Configuración de la conexión y sesión de BD
+├── main.py                     # Punto de entrada de la app FastAPI
+├── database.py                 # Configuración de la conexión y sesión de BD
+├── core/
+│   ├── security.py             # Hashing de contraseñas y manejo de JWT
+│   └── dependencies.py         # Dependencia get_current_user
 ├── models/
-│   └── notes.py              # Modelo ORM de Notes
+│   ├── notes.py                # Modelo ORM de Notes
+│   └── users.py                # Modelo ORM de Users
 ├── schemas/
-│   └── notes.py              # Esquemas Pydantic (request/response)
+│   ├── notes.py                # Esquemas Pydantic de notas
+│   └── users.py                # Esquemas Pydantic de usuarios y token
 ├── routers/
-│   └── notes.py              # Endpoints de /notes
+│   ├── notes.py                # Endpoints de /notes
+│   └── users.py                # Endpoints de /users
 └── services/
-    └── notes_service.py      # Lógica de acceso a datos
+    ├── notes_service.py        # Lógica de acceso a datos de notas
+    └── users_service.py        # Lógica de acceso a datos de usuarios
+
+alembic/                        # Migraciones de base de datos
+tests/                          # Suite de pruebas (pytest)
 ```
 
 ### Requisitos previos
@@ -67,6 +85,15 @@ src/user_notes/
 
    ```env
    DATABASE_URL=postgresql://usuario:password@host:puerto/nombre_bd
+   SECRET_KEY=una_clave_secreta_larga_y_aleatoria
+   ALGORITHM=HS256
+   ACCESS_TOKEN_EXPIRE_MINUTES=30
+   ```
+
+4. Aplica las migraciones de base de datos:
+
+   ```bash
+   uv run alembic upgrade head
    ```
 
 ### Ejecución
@@ -79,18 +106,44 @@ uv run fastapi dev src/user_notes/main.py
 
 La API quedará disponible en `http://127.0.0.1:8000` y la documentación interactiva (Swagger UI) en `http://127.0.0.1:8000/docs`.
 
-> Las tablas se crean automáticamente al iniciar la aplicación (`Base.metadata.create_all`), no se requiere ejecutar migraciones por separado.
+> El esquema de la base de datos se gestiona con Alembic (`uv run alembic upgrade head`); ya no se crea automáticamente al iniciar la aplicación.
+
+### Pruebas
+
+Ejecuta la suite de pruebas con:
+
+```bash
+uv run pytest
+```
+
+### Autenticación
+
+1. Registra un usuario en `POST /users/register`.
+2. Inicia sesión en `POST /users/login` (formulario `x-www-form-urlencoded`: `username` = email, `password`) para obtener un `access_token`.
+3. Envía el token en cada solicitud protegida con el encabezado `Authorization: Bearer <access_token>`.
 
 ### Endpoints
 
-| Método | Ruta | Descripción |
-|---|---|---|
-| GET | `/` | Health check |
-| GET | `/notes/` | Lista todas las notas |
-| POST | `/notes/` | Crea una nueva nota |
-| GET | `/notes/{note_id}` | Obtiene una nota por id |
-| PATCH | `/notes/{note_id}` | Actualiza una nota existente |
-| DELETE | `/notes/{note_id}` | Elimina una nota |
+| Método | Ruta | Auth | Descripción |
+|---|---|---|---|
+| GET | `/` | No | Health check |
+| POST | `/users/register` | No | Registra un nuevo usuario |
+| POST | `/users/login` | No | Inicia sesión y devuelve un JWT |
+| GET | `/users/me` | Sí | Devuelve el usuario autenticado |
+| GET | `/notes/` | Sí | Lista las notas del usuario autenticado |
+| POST | `/notes/` | Sí | Crea una nueva nota para el usuario autenticado |
+| GET | `/notes/{note_id}` | Sí | Obtiene una nota por id (solo el dueño) |
+| PATCH | `/notes/{note_id}` | Sí | Actualiza una nota existente (solo el dueño) |
+| DELETE | `/notes/{note_id}` | Sí | Elimina una nota (solo el dueño) |
+
+#### Modelo de usuario
+
+```json
+{
+  "id": 1,
+  "email": "usuario@example.com"
+}
+```
 
 #### Modelo de nota
 
@@ -99,25 +152,30 @@ La API quedará disponible en `http://127.0.0.1:8000` y la documentación intera
   "id": 1,
   "title": "Título de la nota",
   "content": "Contenido de la nota",
+  "owner_id": 1,
   "created_at": "2026-08-23T09:00:00-05:00",
   "updated_at": "2026-08-23T09:00:00-05:00"
 }
 ```
 
-`title` y `content` son requeridos y no pueden estar vacíos.
+`title` y `content` son requeridos y no pueden estar vacíos. Intentar acceder a una nota que no pertenece al usuario autenticado devuelve `403 Forbidden`.
 
 ---
 
 ## English
 
-REST API for managing user notes, built with **FastAPI**, **SQLAlchemy**, and **PostgreSQL**.
+REST API for managing user notes, built with **FastAPI**, **SQLAlchemy**, and **PostgreSQL**. Each note belongs to an authenticated user, and only its owner can view, update, or delete it.
 
 ### Features
 
-- Full CRUD for notes (create, list, retrieve, update, delete).
+- User registration and login with hashed passwords (**bcrypt**).
+- **JWT**-based authentication (OAuth2 Password Flow).
+- Full CRUD for notes (create, list, retrieve, update, delete), scoped to the owning user.
 - Data validation with **Pydantic**.
 - Persistence via **SQLAlchemy ORM** on top of **PostgreSQL**.
+- Schema migrations managed with **Alembic**.
 - Created/updated timestamps serialized in the `America/Bogota` timezone.
+- Test suite with **pytest** running against an in-memory SQLite database.
 - Health check endpoint (`GET /`).
 
 ### Tech stack
@@ -127,25 +185,39 @@ REST API for managing user notes, built with **FastAPI**, **SQLAlchemy**, and **
 | Python | >= 3.14 |
 | FastAPI | Web framework |
 | SQLAlchemy | ORM |
+| Alembic | Database migrations |
 | psycopg2 | PostgreSQL driver |
 | Pydantic | Validation and serialization |
+| passlib (bcrypt) | Password hashing |
+| python-jose | JWT signing and verification |
 | python-dotenv | Environment variable loading |
+| pytest | Automated testing |
 | uv | Dependency and environment management |
 
 ### Project structure
 
 ```
 src/user_notes/
-├── main.py                 # FastAPI app entry point
-├── database.py              # DB connection/session setup
+├── main.py                     # FastAPI app entry point
+├── database.py                 # DB connection/session setup
+├── core/
+│   ├── security.py             # Password hashing and JWT handling
+│   └── dependencies.py         # get_current_user dependency
 ├── models/
-│   └── notes.py              # Notes ORM model
+│   ├── notes.py                # Notes ORM model
+│   └── users.py                # Users ORM model
 ├── schemas/
-│   └── notes.py              # Pydantic schemas (request/response)
+│   ├── notes.py                # Note Pydantic schemas
+│   └── users.py                # User and token Pydantic schemas
 ├── routers/
-│   └── notes.py              # /notes endpoints
+│   ├── notes.py                # /notes endpoints
+│   └── users.py                # /users endpoints
 └── services/
-    └── notes_service.py      # Data access logic
+    ├── notes_service.py        # Notes data access logic
+    └── users_service.py        # Users data access logic
+
+alembic/                        # Database migrations
+tests/                          # Test suite (pytest)
 ```
 
 ### Prerequisites
@@ -171,6 +243,15 @@ src/user_notes/
 
    ```env
    DATABASE_URL=postgresql://user:password@host:port/db_name
+   SECRET_KEY=a_long_random_secret_key
+   ALGORITHM=HS256
+   ACCESS_TOKEN_EXPIRE_MINUTES=30
+   ```
+
+4. Apply database migrations:
+
+   ```bash
+   uv run alembic upgrade head
    ```
 
 ### Running the app
@@ -183,18 +264,44 @@ uv run fastapi dev src/user_notes/main.py
 
 The API will be available at `http://127.0.0.1:8000`, with interactive docs (Swagger UI) at `http://127.0.0.1:8000/docs`.
 
-> Tables are created automatically on startup (`Base.metadata.create_all`) — no separate migration step is required.
+> The database schema is managed with Alembic (`uv run alembic upgrade head`); it is no longer created automatically on startup.
+
+### Tests
+
+Run the test suite with:
+
+```bash
+uv run pytest
+```
+
+### Authentication
+
+1. Register a user at `POST /users/register`.
+2. Log in at `POST /users/login` (`x-www-form-urlencoded` form: `username` = email, `password`) to obtain an `access_token`.
+3. Send the token on every protected request via the `Authorization: Bearer <access_token>` header.
 
 ### Endpoints
 
-| Method | Path | Description |
-|---|---|---|
-| GET | `/` | Health check |
-| GET | `/notes/` | List all notes |
-| POST | `/notes/` | Create a new note |
-| GET | `/notes/{note_id}` | Retrieve a note by id |
-| PATCH | `/notes/{note_id}` | Update an existing note |
-| DELETE | `/notes/{note_id}` | Delete a note |
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/` | No | Health check |
+| POST | `/users/register` | No | Registers a new user |
+| POST | `/users/login` | No | Logs in and returns a JWT |
+| GET | `/users/me` | Yes | Returns the authenticated user |
+| GET | `/notes/` | Yes | Lists the authenticated user's notes |
+| POST | `/notes/` | Yes | Creates a new note for the authenticated user |
+| GET | `/notes/{note_id}` | Yes | Retrieves a note by id (owner only) |
+| PATCH | `/notes/{note_id}` | Yes | Updates an existing note (owner only) |
+| DELETE | `/notes/{note_id}` | Yes | Deletes a note (owner only) |
+
+#### User model
+
+```json
+{
+  "id": 1,
+  "email": "user@example.com"
+}
+```
 
 #### Note model
 
@@ -203,9 +310,10 @@ The API will be available at `http://127.0.0.1:8000`, with interactive docs (Swa
   "id": 1,
   "title": "Note title",
   "content": "Note content",
+  "owner_id": 1,
   "created_at": "2026-08-23T09:00:00-05:00",
   "updated_at": "2026-08-23T09:00:00-05:00"
 }
 ```
 
-`title` and `content` are required and cannot be empty.
+`title` and `content` are required and cannot be empty. Attempting to access a note that does not belong to the authenticated user returns `403 Forbidden`.
