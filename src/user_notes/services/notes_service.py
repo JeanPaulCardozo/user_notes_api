@@ -26,10 +26,6 @@ def get_note(db: Session, note_id: int) -> Notes | None:
 
 def update_note(db: Session, note_schema: NoteUpdate, note_id: int) -> Notes | None:
     note = get_note(db, note_id)
-
-    if note is None:
-        return None
-
     data = note_schema.model_dump(exclude_unset=True)
 
     for field, value in data.items():

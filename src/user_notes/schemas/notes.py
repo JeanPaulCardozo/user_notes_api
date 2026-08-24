@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field, field_serializer
+from typing import Optional
 from pydantic_core.core_schema import SerializationInfo
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -10,7 +11,8 @@ class NoteBase(BaseModel):
 
 
 class NoteCreate(NoteBase):
-    pass
+    title: Optional[str] = None
+    content: Optional[str] = None
 
 
 class NoteUpdate(NoteBase):
