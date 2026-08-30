@@ -11,12 +11,12 @@ class NoteBase(BaseModel):
 
 
 class NoteCreate(NoteBase):
-    title: Optional[str] = None
-    content: Optional[str] = None
+    pass
 
 
 class NoteUpdate(NoteBase):
-    pass
+    title: Optional[str] = None
+    content: Optional[str] = None
 
 
 class NoteOut(NoteBase):
