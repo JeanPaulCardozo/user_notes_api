@@ -13,6 +13,8 @@ API REST para la gestión de notas de usuario, construida con **FastAPI**, **SQL
 - Registro y login de usuarios con contraseñas hasheadas (**bcrypt**).
 - Autenticación mediante **JWT** (OAuth2 Password Flow).
 - CRUD completo de notas (crear, listar, obtener, actualizar y eliminar), protegido por usuario propietario.
+- Búsqueda de notas por texto en título o contenido.
+- Limitación de tasa (*rate limiting*) en el login (5 intentos por minuto por IP) con **slowapi**.
 - Validación de datos con **Pydantic**.
 - Persistencia con **SQLAlchemy ORM** sobre **PostgreSQL**.
 - Migraciones de esquema gestionadas con **Alembic**.
@@ -33,6 +35,7 @@ API REST para la gestión de notas de usuario, construida con **FastAPI**, **SQL
 | passlib (bcrypt) | Hashing de contraseñas |
 | python-jose | Firma y verificación de JWT |
 | python-dotenv | Carga de variables de entorno |
+| slowapi | Rate limiting |
 | pytest | Pruebas automatizadas |
 | uv | Gestión de dependencias y entorno |
 
@@ -44,7 +47,8 @@ src/user_notes/
 ├── database.py                 # Configuración de la conexión y sesión de BD
 ├── core/
 │   ├── security.py             # Hashing de contraseñas y manejo de JWT
-│   └── dependencies.py         # Dependencia get_current_user
+│   ├── dependencies.py         # Dependencia get_current_user
+│   └── limiter.py              # Configuración de rate limiting (slowapi)
 ├── models/
 │   ├── notes.py                # Modelo ORM de Notes
 │   └── users.py                # Modelo ORM de Users
@@ -128,10 +132,11 @@ uv run pytest
 |---|---|---|---|
 | GET | `/` | No | Health check |
 | POST | `/users/register` | No | Registra un nuevo usuario |
-| POST | `/users/login` | No | Inicia sesión y devuelve un JWT |
+| POST | `/users/login` | No | Inicia sesión y devuelve un JWT (limitado a 5 solicitudes/minuto por IP) |
 | GET | `/users/me` | Sí | Devuelve el usuario autenticado |
 | GET | `/notes/` | Sí | Lista las notas del usuario autenticado |
 | POST | `/notes/` | Sí | Crea una nueva nota para el usuario autenticado |
+| POST | `/notes/search?q=` | Sí | Busca notas del usuario cuyo título o contenido contenga `q` |
 | GET | `/notes/{note_id}` | Sí | Obtiene una nota por id (solo el dueño) |
 | PATCH | `/notes/{note_id}` | Sí | Actualiza una nota existente (solo el dueño) |
 | DELETE | `/notes/{note_id}` | Sí | Elimina una nota (solo el dueño) |
@@ -171,6 +176,8 @@ REST API for managing user notes, built with **FastAPI**, **SQLAlchemy**, and **
 - User registration and login with hashed passwords (**bcrypt**).
 - **JWT**-based authentication (OAuth2 Password Flow).
 - Full CRUD for notes (create, list, retrieve, update, delete), scoped to the owning user.
+- Text search over notes by title or content.
+- Rate limiting on login (5 attempts per minute per IP) with **slowapi**.
 - Data validation with **Pydantic**.
 - Persistence via **SQLAlchemy ORM** on top of **PostgreSQL**.
 - Schema migrations managed with **Alembic**.
@@ -191,6 +198,7 @@ REST API for managing user notes, built with **FastAPI**, **SQLAlchemy**, and **
 | passlib (bcrypt) | Password hashing |
 | python-jose | JWT signing and verification |
 | python-dotenv | Environment variable loading |
+| slowapi | Rate limiting |
 | pytest | Automated testing |
 | uv | Dependency and environment management |
 
@@ -202,7 +210,8 @@ src/user_notes/
 ├── database.py                 # DB connection/session setup
 ├── core/
 │   ├── security.py             # Password hashing and JWT handling
-│   └── dependencies.py         # get_current_user dependency
+│   ├── dependencies.py         # get_current_user dependency
+│   └── limiter.py              # Rate limiting setup (slowapi)
 ├── models/
 │   ├── notes.py                # Notes ORM model
 │   └── users.py                # Users ORM model
@@ -286,10 +295,11 @@ uv run pytest
 |---|---|---|---|
 | GET | `/` | No | Health check |
 | POST | `/users/register` | No | Registers a new user |
-| POST | `/users/login` | No | Logs in and returns a JWT |
+| POST | `/users/login` | No | Logs in and returns a JWT (rate-limited to 5 requests/minute per IP) |
 | GET | `/users/me` | Yes | Returns the authenticated user |
 | GET | `/notes/` | Yes | Lists the authenticated user's notes |
 | POST | `/notes/` | Yes | Creates a new note for the authenticated user |
+| POST | `/notes/search?q=` | Yes | Searches the user's notes whose title or content contains `q` |
 | GET | `/notes/{note_id}` | Yes | Retrieves a note by id (owner only) |
 | PATCH | `/notes/{note_id}` | Yes | Updates an existing note (owner only) |
 | DELETE | `/notes/{note_id}` | Yes | Deletes a note (owner only) |
