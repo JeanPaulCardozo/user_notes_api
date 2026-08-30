@@ -26,6 +26,15 @@ def create_note(
     return notes_service.create_note(db, note, current_user.id)
 
 
+@router.post("/search", response_model=list[NoteOut], status_code=200)
+def search_note(
+    q: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return notes_service.search_notes(db, current_user.id, q)
+
+
 @router.get("/{note_id}", response_model=NoteOut, status_code=200)
 def get_note(
     note_id: int,

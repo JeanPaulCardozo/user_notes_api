@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 
 from user_notes.models.notes import Notes
 from user_notes.schemas.notes import NoteCreate, NoteUpdate
@@ -18,6 +19,19 @@ def create_note(db: Session, note_schema: NoteCreate, owner_id: int) -> Notes:
 
 def get_notes(db: Session, owner_id: int) -> list[Notes]:
     return db.query(Notes).filter(Notes.owner_id == owner_id).all()
+
+
+def search_notes(db: Session, owner_id: int, query: str) -> list[Notes]:
+    search_pattern = f"%{query}%"
+    search_result = (
+        db.query(Notes)
+        .filter(
+            Notes.owner_id == owner_id,
+            or_(Notes.title.ilike(search_pattern), Notes.content.ilike(search_pattern)),
+        )
+        .all()
+    )
+    return search_result
 
 
 def get_note(db: Session, note_id: int) -> Notes | None:
